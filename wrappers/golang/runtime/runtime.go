@@ -19,6 +19,19 @@ func LoadBackendFromEnvOrDefault() EIcicleError {
 	return EIcicleError(C.icicle_load_backend_from_env_or_default())
 }
 
+func WarmUpDevice(stream Stream) EIcicleError {
+	mem, err := GetAvailableMemory()
+	if err != Success {
+		return EIcicleError(err)
+	}
+	allocatedMem, err := MallocAsync(mem.Free / 2, stream)
+	if err != Success {
+		return EIcicleError(err)
+	}
+	FreeAsync(allocatedMem, stream)
+	return EIcicleError(Success)
+}
+
 type AvailableMemory struct {
 	Total uint
 	Free  uint

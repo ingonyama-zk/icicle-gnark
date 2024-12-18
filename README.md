@@ -74,26 +74,6 @@ ICICLE provides build systems for C++, Rust, and Go. Each build system incorpora
 > [!WARNING]
 > Ensure ICICLE libraries are installed correctly when building or installing a library/application that depends on ICICLE so that they can be located at runtime.
 
-### Rust
-
-In cargo.toml, specify the ICICLE libs to use:
-
-```bash
-[dependencies]
-icicle-runtime = { git = "https://github.com/ingonyama-zk/icicle.git", branch="main" }
-icicle-core = { git = "https://github.com/ingonyama-zk/icicle.git", branch="main" }
-icicle-babybear = { git = "https://github.com/ingonyama-zk/icicle.git", branch="main" }
-# add other ICICLE crates here if need additional fields/curves
-```
-
-You can specify `branch=branch-name`, `tag=tag-name`, or `rev=commit-id`.
-
-Build the Rust project:
-
-```bash
-cargo build --release
-```
-
 ### Go
 
 There are two ways to build from source in Go:
@@ -221,28 +201,7 @@ You can customize your ICICLE build with the following flags:
 
 ## Install CUDA backend
 
-To install the CUDA backend
-
-1. [Download the release binaries](https://github.com/ingonyama-zk/icicle/releases/).
-2. Install it, by extracting the binaries to `/opt/` or any other custom install path.
-3. In your application, load the cuda backend and select a CUDA device.
-4. All subsequent API will now use the selected device.
-
-
-Rust:
-
-```rust
-use icicle_runtime::{runtime, Device};
-
-runtime::load_backend_from_env_or_default().unwrap();
-// or load programmatically
-runtime::load_backend("/path/to/backend/installdir").unwrap();
-// Select CUDA device
-let device = Device::new("CUDA", 1 /*gpu-id*/);
-icicle_runtime::set_device(&device).unwrap();
-
-// Any call will now execute on GPU-1
-```
+The backend is automatically built when compiling the library.
 
 Go:
 
@@ -252,8 +211,6 @@ import(
 )
 
 result := runtime.LoadBackendFromEnvOrDefault()
-// or load from custom install dir
-result := runtime.LoadBackend("/path/to/backend/installdir", true)
 // Select CUDA device
 device := runtime.CreateDevice("CUDA", 0) // or other
 result := runtime.SetDevice(device)
