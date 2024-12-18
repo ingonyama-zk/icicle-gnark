@@ -54,7 +54,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Build options
 option(BUILD_TESTS "Build unit tests. Default=OFF" OFF)
 option(CPU_BACKEND "Build CPU backend. Default=ON" ON)
-option(CUDA_BACKEND "Build CUDA backend. Default=OFF" OFF)
+option(CUDA_BACKEND "Build CUDA backend. Default=ON" ON)
 
 # features that some fields/curves have and some don't.
 option(NTT "Build NTT" ON)
