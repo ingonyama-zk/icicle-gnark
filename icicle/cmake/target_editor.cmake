@@ -6,7 +6,6 @@ function(handle_field TARGET)
   target_sources(${TARGET} PRIVATE
       src/fields/ffi_extern.cpp
       src/vec_ops.cpp
-      src/matrix_ops.cpp
   )
 endfunction()
 
@@ -22,22 +21,10 @@ function(handle_ntt TARGET FEATURE_LIST)
     target_compile_definitions(${TARGET} PUBLIC NTT=${NTT})
     target_sources(${TARGET} PRIVATE
       src/ntt.cpp
-      src/polynomials/polynomials.cpp
-      src/polynomials/polynomials_c_api.cpp
-      src/polynomials/polynomials_abstract_factory.cpp
     )
     set(NTT ON CACHE BOOL "Enable NTT feature" FORCE)
   else()
     set(NTT OFF CACHE BOOL "NTT not available for this field" FORCE)
-  endif()
-endfunction()
-
-function(handle_ext_field TARGET FEATURE_LIST)
-  if(EXT_FIELD AND "EXT_FIELD" IN_LIST FEATURE_LIST)
-  target_compile_definitions(${TARGET} PUBLIC EXT_FIELD=${EXT_FIELD})
-    set(EXT_FIELD ON CACHE BOOL "Enable EXT_FIELD feature" FORCE)
-  else()
-    set(EXT_FIELD OFF CACHE BOOL "EXT_FIELD not available for this field" FORCE)
   endif()
 endfunction()
 
@@ -57,45 +44,5 @@ function(handle_g2 TARGET FEATURE_LIST)
     set(G2 "G2" CACHE BOOL "Enable G2 feature" FORCE)
   else()
     set(G2 OFF CACHE BOOL "G2 not available for this curve" FORCE)
-  endif()
-endfunction()
-
-function(handle_ecntt TARGET FEATURE_LIST)
-  if(ECNTT AND "ECNTT" IN_LIST FEATURE_LIST)
-    target_compile_definitions(${TARGET} PUBLIC ECNTT=${ECNTT})
-    target_sources(${TARGET} PRIVATE src/ecntt.cpp)
-    set(ECNTT ON CACHE BOOL "Enable ECNTT feature" FORCE)
-  else()
-    set(ECNTT OFF CACHE BOOL "ECNTT not available for this curve" FORCE)
-  endif()
-endfunction()
-
-function(handle_poseidon TARGET FEATURE_LIST)
-  if(POSEIDON AND "POSEIDON" IN_LIST FEATURE_LIST)
-    target_compile_definitions(${TARGET} PUBLIC POSEIDON=${POSEIDON})
-    target_sources(${TARGET} PRIVATE src/hash/poseidon.cpp src/hash/poseidon_c_api.cpp)
-    set(POSEIDON ON CACHE BOOL "Enable POSEIDON feature" FORCE)
-  else()
-    set(POSEIDON OFF CACHE BOOL "POSEIDON not available for this field" FORCE)
-  endif()
-endfunction()
-
-function(handle_poseidon2 TARGET FEATURE_LIST)
-  if(POSEIDON2 AND "POSEIDON2" IN_LIST FEATURE_LIST)
-    target_compile_definitions(${TARGET} PUBLIC POSEIDON2=${POSEIDON2})
-    target_sources(${TARGET} PRIVATE src/hash/poseidon2.cpp src/hash/poseidon2_c_api.cpp)
-    set(POSEIDON2 ON CACHE BOOL "Enable POSEIDON2 feature" FORCE)
-  else()
-    set(POSEIDON2 OFF CACHE BOOL "POSEIDON2 not available for this field" FORCE)
-  endif()
-endfunction()
-
-function(handle_sumcheck TARGET FEATURE_LIST)
-  if(SUMCHECK AND "SUMCHECK" IN_LIST FEATURE_LIST)
-    target_compile_definitions(${TARGET} PUBLIC SUMCHECK=${SUMCHECK})
-    target_sources(${TARGET} PRIVATE src/sumcheck/sumcheck_c_api.cpp)
-    set(SUMCHECK ON CACHE BOOL "Enable SUMCHECK feature" FORCE)
-  else()
-    set(SUMCHECK OFF CACHE BOOL "SUMCHECK not available for this field" FORCE)
   endif()
 endfunction()

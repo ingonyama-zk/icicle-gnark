@@ -25,7 +25,4 @@ namespace curve_config = bls12_377;
   #include "icicle/curves/params/bw6_761.h"
 namespace curve_config = bw6_761;
 
-#elif CURVE_ID == GRUMPKIN
-  #include "icicle/curves/params/grumpkin.h"
-namespace curve_config = grumpkin;
 #endif

@@ -21,17 +21,4 @@ namespace field_config = bls12_377;
 #elif FIELD_ID == BW6_761
   #include "icicle/fields/snark_fields/bw6_761_scalar.h"
 namespace field_config = bw6_761;
-#elif FIELD_ID == GRUMPKIN
-  #include "icicle/fields/snark_fields/grumpkin_scalar.h"
-namespace field_config = grumpkin;
-
-#elif FIELD_ID == BABY_BEAR
-  #include "icicle/fields/stark_fields/babybear.h"
-namespace field_config = babybear;
-#elif FIELD_ID == STARK_252
-  #include "icicle/fields/stark_fields/stark252.h"
-namespace field_config = stark252;
-#elif FIELD_ID == M31
-  #include "icicle/fields/stark_fields/m31.h"
-namespace field_config = m31;
 #endif

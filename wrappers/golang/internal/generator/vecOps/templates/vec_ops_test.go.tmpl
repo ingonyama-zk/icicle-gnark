@@ -34,43 +34,12 @@ func test{{capitalize .Field}}VecOps(suite *suite.Suite) {
 	suite.Equal(a, out3)
 }
 
-func test{{capitalize .Field}}Transpose(suite *suite.Suite) {
-	rowSize := 1 << 6
-	columnSize := 1 << 8
-
-	matrix := {{.Field}}.GenerateScalars(rowSize * columnSize)
-
-	out := make(core.HostSlice[{{.Field}}.{{.FieldPrefix}}Field], rowSize*columnSize)
-	out2 := make(core.HostSlice[{{.Field}}.{{.FieldPrefix}}Field], rowSize*columnSize)
-
-	cfg := core.DefaultVecOpsConfig()
-
-	vecOps.TransposeMatrix(matrix, out, columnSize, rowSize, cfg)
-	vecOps.TransposeMatrix(out, out2, rowSize, columnSize, cfg)
-
-	suite.Equal(matrix, out2)
-
-	var dMatrix, dOut, dOut2 core.DeviceSlice
-
-	matrix.CopyToDevice(&dMatrix, true)
-	dOut.Malloc(matrix.SizeOfElement(), columnSize*rowSize)
-	dOut2.Malloc(matrix.SizeOfElement(), columnSize*rowSize)
-
-	vecOps.TransposeMatrix(dMatrix, dOut, columnSize, rowSize, cfg)
-	vecOps.TransposeMatrix(dOut, dOut2, rowSize, columnSize, cfg)
-	output := make(core.HostSlice[{{.Field}}.{{.FieldPrefix}}Field], rowSize*columnSize)
-	output.CopyFromDevice(&dOut2)
-
-	suite.Equal(matrix, output)
-}
-
 type {{capitalize .Field}}VecOpsTestSuite struct {
 	suite.Suite
 }
 
 func (s *{{capitalize .Field}}VecOpsTestSuite) Test{{capitalize .Field}}VecOps() {
 	s.Run("Test{{capitalize .Field}}VecOps", testWrapper(&s.Suite, test{{capitalize .Field}}VecOps))
-	s.Run("Test{{capitalize .Field}}Transpose", testWrapper(&s.Suite, test{{capitalize .Field}}Transpose))
 }
 
 func TestSuite{{capitalize .Field}}VecOps(t *testing.T) {

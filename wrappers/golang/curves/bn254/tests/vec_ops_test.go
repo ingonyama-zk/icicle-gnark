@@ -34,43 +34,12 @@ func testBn254VecOps(suite *suite.Suite) {
 	suite.Equal(a, out3)
 }
 
-func testBn254Transpose(suite *suite.Suite) {
-	rowSize := 1 << 6
-	columnSize := 1 << 8
-
-	matrix := bn254.GenerateScalars(rowSize * columnSize)
-
-	out := make(core.HostSlice[bn254.ScalarField], rowSize*columnSize)
-	out2 := make(core.HostSlice[bn254.ScalarField], rowSize*columnSize)
-
-	cfg := core.DefaultVecOpsConfig()
-
-	vecOps.TransposeMatrix(matrix, out, columnSize, rowSize, cfg)
-	vecOps.TransposeMatrix(out, out2, rowSize, columnSize, cfg)
-
-	suite.Equal(matrix, out2)
-
-	var dMatrix, dOut, dOut2 core.DeviceSlice
-
-	matrix.CopyToDevice(&dMatrix, true)
-	dOut.Malloc(matrix.SizeOfElement(), columnSize*rowSize)
-	dOut2.Malloc(matrix.SizeOfElement(), columnSize*rowSize)
-
-	vecOps.TransposeMatrix(dMatrix, dOut, columnSize, rowSize, cfg)
-	vecOps.TransposeMatrix(dOut, dOut2, rowSize, columnSize, cfg)
-	output := make(core.HostSlice[bn254.ScalarField], rowSize*columnSize)
-	output.CopyFromDevice(&dOut2)
-
-	suite.Equal(matrix, output)
-}
-
 type Bn254VecOpsTestSuite struct {
 	suite.Suite
 }
 
 func (s *Bn254VecOpsTestSuite) TestBn254VecOps() {
 	s.Run("TestBn254VecOps", testWrapper(&s.Suite, testBn254VecOps))
-	s.Run("TestBn254Transpose", testWrapper(&s.Suite, testBn254Transpose))
 }
 
 func TestSuiteBn254VecOps(t *testing.T) {

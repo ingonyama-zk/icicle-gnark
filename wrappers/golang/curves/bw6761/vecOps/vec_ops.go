@@ -29,16 +29,3 @@ func VecOp(a, b, out core.HostOrDeviceSlice, config core.VecOpsConfig, op core.V
 
 	return ret
 }
-
-func TransposeMatrix(in, out core.HostOrDeviceSlice, columnSize, rowSize int, config core.VecOpsConfig) runtime.EIcicleError {
-	inPointer, _, outPointer, cfgPointer, _ := core.VecOpCheck(in, in, out, &config)
-
-	cIn := (*C.scalar_t)(inPointer)
-	cRowSize := (C.int)(rowSize)
-	cColumnSize := (C.int)(columnSize)
-	cConfig := (*C.VecOpsConfig)(cfgPointer)
-	cOut := (*C.scalar_t)(outPointer)
-
-	err := (C.bw6_761_matrix_transpose(cIn, cRowSize, cColumnSize, cConfig, cOut))
-	return runtime.EIcicleError(err)
-}

@@ -35,14 +35,6 @@ int bw6_761_vector_sub(
   scalar_t* result
 );
 
-int bw6_761_matrix_transpose(
-  scalar_t* mat_in,
-  int row_size,
-  int column_size,
-  VecOpsConfig* config,
-  scalar_t* mat_out
-);
-
 #ifdef __cplusplus
 }
 #endif

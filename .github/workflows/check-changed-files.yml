@@ -6,15 +6,9 @@ on:
       golang:
         description: "Flag for if GoLang files changed"
         value: ${{ jobs.check-changed-files.outputs.golang }}
-      rust:
-        description: "Flag for if Rust files changed"
-        value: ${{ jobs.check-changed-files.outputs.rust }}
       cpp:
         description: "Flag for if C++ files changed"
         value: ${{ jobs.check-changed-files.outputs.cpp }}
-      examples:
-        description: "Flag for if example files changed"
-        value: ${{ jobs.check-changed-files.outputs.examples }}
 
 jobs:
   check-changed-files:
@@ -22,9 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       golang: ${{ steps.changed_files.outputs.golang }}
-      rust: ${{ steps.changed_files.outputs.rust }}
       cpp: ${{ steps.changed_files.outputs.cpp }}
-      examples: ${{ steps.changed_files.outputs.examples }}
     steps:
     - name: Checkout Repo
       uses: actions/checkout@v4
@@ -39,6 +31,4 @@ jobs:
       # https://github.com/tj-actions/changed-files#outputs-
       run: |
         echo "golang=${{ steps.changed-files-yaml.outputs.golang_any_modified }}" >> "$GITHUB_OUTPUT"
-        echo "rust=${{ steps.changed-files-yaml.outputs.rust_any_modified }}" >> "$GITHUB_OUTPUT"
         echo "cpp=${{ steps.changed-files-yaml.outputs.cpp_any_modified }}" >> "$GITHUB_OUTPUT"
-        echo "examples=${{ steps.changed-files-yaml.outputs.examples_any_modified }}" >> "$GITHUB_OUTPUT"

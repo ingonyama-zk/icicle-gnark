@@ -10,16 +10,10 @@ if (FIELD)
         src/field/cpu_vec_ops.cpp
     )
     if (NTT)
-        target_sources(icicle_field PRIVATE src/field/cpu_ntt.cpp src/polynomials/cpu_polynomial_backend.cpp)
-    endif()
-    if (POSEIDON)
-        target_sources(icicle_field PRIVATE src/hash/cpu_poseidon.cpp)
-    endif()
-    if (POSEIDON2)
-        target_sources(icicle_field PRIVATE src/hash/cpu_poseidon2.cpp)
+        target_sources(icicle_field PRIVATE src/field/cpu_ntt.cpp)
     endif()
     target_include_directories(icicle_field PRIVATE include)
-endif() # FIELD
+endif()
 
 # curve API library
 if (CURVE)
@@ -29,19 +23,6 @@ if (CURVE)
     if (MSM)
         target_sources(icicle_curve PRIVATE src/curve/cpu_msm.cpp)
     endif()
-    if (ECNTT)
-        target_sources(icicle_curve PRIVATE src/curve/cpu_ecntt.cpp)
-    endif()
     # incdir is PUBLIC because config-extension headers are exposed to app
     target_include_directories(icicle_curve PUBLIC include)
 endif()
-
-if (HASH)
-    target_sources(icicle_hash PRIVATE
-        src/hash/cpu_keccak.cpp
-        src/hash/cpu_blake2s.cpp
-        src/hash/cpu_merkle_tree.cpp
-    )
-    target_include_directories(icicle_hash PUBLIC include)
-endif()
-
