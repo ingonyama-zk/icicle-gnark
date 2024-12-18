@@ -24,7 +24,7 @@ func WarmUpDevice(stream Stream) EIcicleError {
 	if err != Success {
 		return EIcicleError(err)
 	}
-	allocatedMem, err := MallocAsync(mem.Free / 2, stream)
+	allocatedMem, err := MallocAsync(mem.Free/2, stream)
 	if err != Success {
 		return EIcicleError(err)
 	}
