@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime/config_extension"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime/config_extension"
 )
 
 type VecOps int

@@ -3,7 +3,7 @@ package tests
 import (
 	"path"
 
-	generator "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/generator_utils"
+	generator "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/generator_utils"
 )
 
 func Generate(baseDir, field, fieldPrefix, gnarkImport string, rou int, supportsNTT bool) {

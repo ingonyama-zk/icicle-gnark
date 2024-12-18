@@ -5,8 +5,8 @@ package vecOps
 import "C"
 
 import (
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/core"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 )
 
 func VecOp(a, b, out core.HostOrDeviceSlice, config core.VecOpsConfig, op core.VecOps) (ret runtime.EIcicleError) {

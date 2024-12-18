@@ -6,15 +6,15 @@ import (
 	"os/exec"
 	"path"
 
-	config "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/config"
-	curves "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/curves"
-	fields "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/fields"
-	lib_linker "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/lib_linker"
-	mock "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/mock"
-	msm "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/msm"
-	ntt "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/ntt"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/tests"
-	vecops "github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/generator/vecOps"
+	config "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/config"
+	curves "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/curves"
+	fields "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/fields"
+	lib_linker "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/lib_linker"
+	mock "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/mock"
+	msm "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/msm"
+	ntt "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/ntt"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/tests"
+	vecops "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/generator/vecOps"
 )
 
 func generateFiles() {

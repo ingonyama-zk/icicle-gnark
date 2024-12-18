@@ -87,9 +87,9 @@ git clone https://github.com/ingonyama-zk/icicle.git
 Add ICICLE v3 to your go.mod file:
 
 ```go
-require github.com/ingonyama-zk/icicle/v3 v3.0.0
+require github.com/ingonyama-zk/icicle-gnark/v3 v3.0.0
 
-replace github.com/ingonyama-zk/icicle/v3 => ../path/to/cloned/icicle
+replace github.com/ingonyama-zk/icicle-gnark/v3 => ../path/to/cloned/icicle
 ```
 
 Navigate to the cloned repo's golang bindings and build the library using the supplied [build script][ICICLE-GO-BUILD-SCRIPT]
@@ -103,8 +103,8 @@ chmod +x build.sh
 2. Update your go.mod to include ICICLE as a dependency, navigate to the dependency in your GOMODCACHE and build ICICLE there
 
 ```sh
-go get github.com/ingonyama-zk/icicle/v3
-cd $(go env GOMODCACHE)/github.com/ingonyama-zk/icicle/v3@<version>/wrappers/golang
+go get github.com/ingonyama-zk/icicle-gnark/v3
+cd $(go env GOMODCACHE)/github.com/ingonyama-zk/icicle-gnark/v3@<version>/wrappers/golang
 chmod +x build.sh
 ./build.sh -curve=bn254
 ```
@@ -117,10 +117,10 @@ Once ICICLE has been built, you can add specific packages when you need them in 
 
 ```go
 import (
-  runtime "github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
-  core "github.com/ingonyama-zk/icicle/v3/wrappers/golang/core"
-  bn254 "github.com/ingonyama-zk/icicle/v3/wrappers/golang/curves/bn254"
-  bn254MSM "github.com/ingonyama-zk/icicle/v3/wrappers/golang/curves/bn254/msm"
+  runtime "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
+  core "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
+  bn254 "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bn254"
+  bn254MSM "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bn254/msm"
 )
 ```
 
@@ -207,7 +207,7 @@ Go:
 
 ```go
 import(
-  "github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+  "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 )
 
 result := runtime.LoadBackendFromEnvOrDefault()

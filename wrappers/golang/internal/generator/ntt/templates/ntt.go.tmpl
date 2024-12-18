@@ -8,9 +8,9 @@ import (
 	{{if .WithDomain}}
 	"unsafe"
 
-	{{.Field}} "github.com/ingonyama-zk/icicle/v3/wrappers/golang/{{.BaseImportPath}}"{{end}}
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/core"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+	{{.Field}} "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/{{.BaseImportPath}}"{{end}}
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 )
 
 func Ntt[T any](scalars core.HostOrDeviceSlice, dir core.NTTDir, cfg *core.NTTConfig[T], results core.HostOrDeviceSlice) runtime.EIcicleError {

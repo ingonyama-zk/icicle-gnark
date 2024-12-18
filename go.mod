@@ -1,4 +1,4 @@
-module github.com/ingonyama-zk/icicle/v3
+module github.com/ingonyama-zk/icicle-gnark/v3
 
 go 1.20
 

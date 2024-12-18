@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 )
 
 var DEVICE runtime.Device

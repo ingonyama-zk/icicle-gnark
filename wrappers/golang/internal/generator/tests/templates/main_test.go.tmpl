@@ -10,12 +10,12 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/{{.GnarkImport}}/fr/fft"
 	{{end -}}
 	{{if .SupportsNTT -}}
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/core"
-	{{.Field}} "github.com/ingonyama-zk/icicle/v3/wrappers/golang/{{.BaseImportPath}}"{{end}}
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
+	{{.Field}} "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/{{.BaseImportPath}}"{{end}}
 	{{if .SupportsNTT -}}
-	ntt "github.com/ingonyama-zk/icicle/v3/wrappers/golang/{{.BaseImportPath}}/ntt"{{end}}
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/test_helpers"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+	ntt "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/{{.BaseImportPath}}/ntt"{{end}}
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/test_helpers"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 	"github.com/stretchr/testify/suite"
 )
 

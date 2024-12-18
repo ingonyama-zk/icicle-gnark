@@ -7,9 +7,9 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/core"
-	bw6_761 "github.com/ingonyama-zk/icicle/v3/wrappers/golang/curves/bw6761"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
+	bw6_761 "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bw6761"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 )
 
 func Ntt[T any](scalars core.HostOrDeviceSlice, dir core.NTTDir, cfg *core.NTTConfig[T], results core.HostOrDeviceSlice) runtime.EIcicleError {

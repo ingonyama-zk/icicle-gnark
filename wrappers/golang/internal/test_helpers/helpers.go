@@ -3,7 +3,7 @@ package test_helpers
 import (
 	"math/rand"
 
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 )
 
 var (

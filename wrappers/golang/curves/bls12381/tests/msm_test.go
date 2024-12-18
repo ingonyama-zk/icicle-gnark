@@ -4,11 +4,11 @@ import (
 	// "sync"
 	"testing"
 
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/core"
-	icicleBls12_381 "github.com/ingonyama-zk/icicle/v3/wrappers/golang/curves/bls12381"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/curves/bls12381/msm"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/test_helpers"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/runtime"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
+	icicleBls12_381 "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bls12381"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bls12381/msm"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/test_helpers"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 	"github.com/stretchr/testify/suite"
 )
 

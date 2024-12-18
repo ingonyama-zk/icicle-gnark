@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/core/internal"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core/internal"
 	"github.com/stretchr/testify/assert"
 )
 

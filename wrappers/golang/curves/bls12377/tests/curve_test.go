@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	bls12_377 "github.com/ingonyama-zk/icicle/v3/wrappers/golang/curves/bls12377"
-	"github.com/ingonyama-zk/icicle/v3/wrappers/golang/internal/test_helpers"
+	bls12_377 "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bls12377"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/test_helpers"
 	"github.com/stretchr/testify/suite"
 )
 
