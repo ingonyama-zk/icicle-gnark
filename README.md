@@ -21,9 +21,6 @@
   <a href="https://x.com/Ingo_zk">
     <img src="https://img.shields.io/badge/follow-darkgray?style=flat&logo=x&labelColor=black" alt="Follow us on Twitter">
   </a>
-  <a href="https://github.com/ingonyama-zk/icicle/releases">
-    <img src="https://img.shields.io/github/v/release/ingonyama-zk/icicle?style=flat&labelColor=black&color=lightblue" alt="GitHub Release">
-  </a>
 </p>
 
 
@@ -41,13 +38,10 @@ We believe that ICICLE will be a cornerstone in the acceleration of ZKPs:
 
 ## Getting Started
 
-This guide will help you get started with ICICLE in C++, Rust, and Go.
+This is a version of ICICLE specifically meant for integration with the Gnark codebase. 
 
 > [!NOTE]
 > **Developers**: We highly recommend reading our [documentation](https://dev.ingonyama.com/) for a comprehensive explanation of ICICLE’s capabilities.
-
-> [!TIP]
-> Try out ICICLE by running some [examples] available in C++, Rust, and Go bindings. Check out our install-and-use examples in [C++](https://github.com/ingonyama-zk/icicle/tree/main/examples/c%2B%2B/install-and-use-icicle), [Rust](https://github.com/ingonyama-zk/icicle/tree/main/examples/rust/install-and-use-icicle) and [Go](TODO)
 
 ### Prerequisites
 
@@ -69,7 +63,7 @@ If you require more compute and have an interesting research project, we have [b
 
 ## Building ICICLE from source
 
-ICICLE provides build systems for C++, Rust, and Go. Each build system incorporates the core ICICLE library, which contains the essential cryptographic primitives. Refer to the [Getting started page](https://dev.ingonyama.com/icicle/build_from_source) for full details about building and using ICICLE.
+ICICLE provides build systems for C++ and Go. Each build system incorporates the core ICICLE library, which contains the essential cryptographic primitives. Refer to the [Getting started page](https://dev.ingonyama.com/icicle/build_from_source) for full details about building and using ICICLE.
 
 > [!WARNING]
 > Ensure ICICLE libraries are installed correctly when building or installing a library/application that depends on ICICLE so that they can be located at runtime.
@@ -81,7 +75,7 @@ There are two ways to build from source in Go:
 1. Clone the repo, update your go.mod to point to the local clone, and build ICICLE within the clone
 
 ```sh
-git clone https://github.com/ingonyama-zk/icicle.git
+git clone https://github.com/ingonyama-zk/icicle-gnark.git
 ```
 
 Add ICICLE v3 to your go.mod file:
@@ -131,7 +125,7 @@ ICICLE can be built and tested in C++ using CMake. The build process is straight
 **Clone the ICICLE repository:**
 
 ```bash
-git clone https://github.com/ingonyama-zk/icicle.git
+git clone https://github.com/ingonyama-zk/icicle-gnark.git
 cd icicle
 ```
 
@@ -163,7 +157,7 @@ target_link_libraries(yourApp PRIVATE icicle_field_babybear icicle_device)
 To install the libs, specify the install prefix `-DCMAKE_INSTALL_PREFIX=/install/dir/`. Then after building, use cmake to install the libraries:
 
 ```sh
-cmake -S icicle -B build -DFIELD=babybear -DCMAKE_INSTALL_PREFIX=/path/to/install/dir/
+cmake -S icicle -B build -DCMAKE_INSTALL_PREFIX=/path/to/install/dir/
 cmake --build build -j # build
 cmake --install build # install icicle to /path/to/install/dir/
 ```
@@ -176,7 +170,7 @@ cmake --install build # install icicle to /path/to/install/dir/
 Add `-DBUILD_TESTS=ON` to the cmake command, build and execute tests:
 
 ```bash
-cmake -S icicle -B build -DFIELD=babybear -DBUILD_TESTS=ON
+cmake -S icicle -B build -DBUILD_TESTS=ON
 cmake --build build -j
 cd build/tests
 ctest
@@ -194,7 +188,6 @@ or choose the test-suite
 
 You can customize your ICICLE build with the following flags:
 
-- `-DCPU_BACKEND=ON/OFF`: Enable or disable built-in CPU backend. `default=ON`.
 - `-DCMAKE_INSTALL_PREFIX=/install/dir`: Specify install directory. `default=/usr/local`.
 - `-DBUILD_TESTS=ON/OFF`: Enable or disable tests. `default=OFF`.
 - `-DBUILD_BENCHMARKS=ON/OFF`: Enable or disable benchmarks. `default=OFF`.
@@ -242,31 +235,7 @@ Join our [Discord Server][DISCORD] and find us on the ICICLE channel. We will be
 
 ### Development Contributions
 
-If you are changing code, please make sure to change your [git hooks path][HOOKS_DOCS] to the repo's [hooks directory][HOOKS_PATH] by running the following command:
-
-```sh
-git config core.hooksPath ./scripts/hooks
-```
-
-In case `clang-format` is missing on your system, you can install it  using the following command:
-
-```sh
-sudo apt install clang-format
-```
-
-You will also need to install [codespell](https://github.com/codespell-project/codespell?tab=readme-ov-file#installation) to check for typos.
-
-This will ensure our custom hooks are run and will make it easier to follow our coding guidelines.
-
-### Hall of Fame
-
-- [Robik](https://github.com/robik75), for his ongoing support and mentorship
-- [liuxiao](https://github.com/liuxiaobleach), for being a top notch bug smasher
-- [gkigiermo](https://github.com/gkigiermo), for making it intuitive to use ICICLE in Google Colab
-- [nonam3e](https://github.com/nonam3e), for adding Grumpkin curve support into ICICLE
-- [alxiong](https://github.com/alxiong), for adding warmup for CudaStream
-- [cyl19970726](https://github.com/cyl19970726), for updating go install source in Dockerfile
-- [PatStiles](https://github.com/PatStiles), for adding Stark252 field
+Please see the main ICICLE repo for contributing.
 
 ## Help & Support
 
@@ -274,10 +243,7 @@ For help and support talk to our devs in our discord channel [#ICICLE](https://d
 
 ## License
 
-ICICLE frontend is distributed under the terms of the MIT License.
-
-> [!NOTE]
-> ICICLE backends, excluding the CPU backend, are distributed under a special license and are not covered by the MIT license.
+This version of ICICLE is distributed under the terms of the MIT License.
 
 See [LICENSE-MIT][LMIT] for details.
 

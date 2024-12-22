@@ -5,15 +5,12 @@ In order to build the underlying ICICLE libraries you should run the build scrip
 Build script USAGE
 
 ```sh
-./build.sh [-curve=<curve>] [-field=<field>] [-hash=<hash>] [-cuda_version=<version>] [-skip_msm] [-skip_ntt] [-skip_g2] [-skip_ecntt] [-skip_fieldext]
+./build.sh [-curve=<curve>] [-cuda_version=<version>] [-skip_msm] [-skip_ntt] [-skip_g2]
 
 curve - The name of the curve to build or "all" to build all supported curves
-field - The name of the field to build or "all" to build all supported fields
 -skip_msm - Optional - build with MSM disabled
 -skip_ntt - Optional - build with NTT disabled
 -skip_g2 - Optional - build with G2 disabled 
--skip_ecntt - Optional - build with ECNTT disabled
--skip_fieldext - Optional - build without field extension
 -help - Optional - Displays usage information
 ```
 
@@ -26,30 +23,21 @@ To build ICICLE libraries for all supported curves with G2 and ECNTT enabled.
 If you wish to build for a specific curve, for example bn254, without G2 or ECNTT enabled.
 
 ```sh
-./build.sh -curve=bn254 -skip_g2 -skip_ecntt
+./build.sh -curve=bn254 -skip_g2
 ```
 
 ## Supported curves, fields and operations
 
 ### Supported curves and operations
 
-| Operation\Curve | bn254 | bls12_377 | bls12_381 | bw6-761 | grumpkin |
-| --- | :---: | :---: | :---: | :---: | :---: |
-| MSM | ✅ | ✅ | ✅ | ✅ | ✅ |
-| G2  | ✅ | ✅ | ✅ | ✅ | ❌ |
-| NTT | ✅ | ✅ | ✅ | ✅ | ❌ |
-| ECNTT | ✅ | ✅ | ✅ | ✅ | ❌ |
-| VecOps | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Polynomials | ✅ | ✅ | ✅ | ✅ | ❌ |
-
-### Supported fields and operations
-
-| Operation\Field | babybear |
-| --- | :---: |
-| VecOps | ✅ |
-| Polynomials | ✅ |
-| NTT | ✅ |
-| Extension Field | ✅ |
+| Operation\Curve | bn254 | bls12_377 | bls12_381 | bw6-761 |
+| --- | :---: | :---: | :---: | :---: |
+| MSM | ✅ | ✅ | ✅ | ✅ |
+| G2  | ✅ | ✅ | ✅ | ✅ |
+| NTT | ✅ | ✅ | ✅ | ✅ |
+| ECNTT | ✅ | ✅ | ✅ | ✅ |
+| VecOps | ✅ | ✅ | ✅ | ✅ |
+| Polynomials | ✅ | ✅ | ✅ | ✅ |
 
 ## Running golang tests
 
@@ -75,7 +63,7 @@ The libraries produced from the code compilation are used to bind Golang to ICIC
 
 ```go
 /*
-#cgo LDFLAGS: -L/path/to/shared/libs -licicle_device -lstdc++ -lm -Wl,-rpath=/path/to/shared/libs
+#cgo LDFLAGS: -L/path/to/shared/libs -licicle_device -lstdc++ -lm
 #include "icicle.h" // make sure you use the correct header file(s)
 */
 import "C"
