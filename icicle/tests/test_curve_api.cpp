@@ -39,12 +39,12 @@ public:
     const int batch = 3;
     const int N = (1 << logn) - rand_uint_32b(0, 5 * logn); // make it not always power of two
     const int precompute_factor = rand_uint_32b(0, 7) + 1;  // between 1 and 8
-    const int total_nof_elemets = batch * N;
+    const int total_nof_elements = batch * N;
 
-    auto scalars = std::make_unique<scalar_t[]>(total_nof_elemets);
+    auto scalars = std::make_unique<scalar_t[]>(total_nof_elements);
     auto bases = std::make_unique<A[]>(N);
     auto precomp_bases = std::make_unique<A[]>(N * precompute_factor);
-    scalar_t::rand_host_many(scalars.get(), total_nof_elemets);
+    scalar_t::rand_host_many(scalars.get(), total_nof_elements);
     P::rand_host_many(bases.get(), N);
 
     auto result_main = std::make_unique<P[]>(batch);
@@ -93,11 +93,11 @@ public:
     const int batch = 3;
     const int N = (1 << logn) - rand_uint_32b(0, 5 * logn); // make it not always power of two
     const int precompute_factor = 1;                        // Precompute is 1 to increase number of BMs
-    const int total_nof_elemets = batch * N;
+    const int total_nof_elements = batch * N;
 
-    auto scalars = std::make_unique<scalar_t[]>(total_nof_elemets);
+    auto scalars = std::make_unique<scalar_t[]>(total_nof_elements);
     auto bases = std::make_unique<A[]>(N);
-    scalar_t::rand_host_many(scalars.get(), total_nof_elemets);
+    scalar_t::rand_host_many(scalars.get(), total_nof_elements);
     P::rand_host_many(bases.get(), N);
 
     auto result_multi_thread = std::make_unique<P[]>(batch);
