@@ -126,14 +126,14 @@ ICICLE can be built and tested in C++ using CMake. The build process is straight
 
 ```bash
 git clone https://github.com/ingonyama-zk/icicle-gnark.git
-cd icicle
+cd icicle-gnark
 ```
 
 **Configure the build:**
 
 ```bash
 mkdir -p build && rm -rf build/*
-cmake -S icicle -B build -DFIELD=babybear
+cmake -S icicle -B build -DCURVE=bn254
 ```
 
 > [!NOTE]
@@ -149,7 +149,7 @@ cmake --build build -j # -j is for multi-core compilation
 **Link your application (or library) to ICICLE:**
 
 ```cmake
-target_link_libraries(yourApp PRIVATE icicle_field_babybear icicle_device)
+target_link_libraries(yourApp PRIVATE icicle_curve_bn254 icicle_field_bn254 icicle_device)
 ```
 
 **Install (optional):**
