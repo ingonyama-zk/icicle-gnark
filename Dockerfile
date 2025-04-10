@@ -25,9 +25,6 @@ WORKDIR ./
 # Copy repository
 COPY . .
 
-# Explicitly fix go.mod versions
-WORKDIR ./gnark-ffi/go
-
 RUN go mod tidy
 
 RUN ICICLE_DIR=$(go env GOMODCACHE)/github.com/ingonyama-zk/icicle-gnark/v3@v3.2.2; \
