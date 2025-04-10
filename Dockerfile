@@ -1,28 +1,39 @@
-# Use the specified base image
-FROM nvidia/cuda:12.0.0-devel-ubuntu22.04
+# Start with CUDA base image
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04 AS cuda-base
 
-# Update and install dependencies
+# Install dependencies
 RUN apt-get update && apt-get install -y \
-    cmake \
-    protobuf-compiler \
-    curl \
     build-essential \
+    clang \
+    git \
+    cmake \
+    curl \
+    ca-certificates \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# Install Golang
-ENV GOLANG_VERSION 1.21.1
+# Install Go
+ENV GOLANG_VERSION=1.22.0
 RUN curl -L https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz | tar -xz -C /usr/local
 ENV PATH="/usr/local/go/bin:${PATH}"
+RUN go version
 
-# Set the working directory in the container
-WORKDIR /app
+WORKDIR ./
 
-# Copy the content of the local directory to the working directory
+# Copy repository
 COPY . .
 
-# Specify the default command for the container
-CMD ["/bin/bash"]
+# Explicitly fix go.mod versions
+WORKDIR ./gnark-ffi/go
+
+RUN go mod tidy
+
+RUN ICICLE_DIR=$(go env GOMODCACHE)/github.com/ingonyama-zk/icicle-gnark/v3@v3.2.2; \
+    cd $ICICLE_DIR/wrappers/golang; \
+    /bin/bash build.sh -curve=bn254; \
+
+ENV ICICLE_BACKEND_INSTALL_DIR=/usr/local/lib/backend
+
+# Add steps below to run your application
