@@ -1,7 +1,7 @@
 # ICICLE for Gnark
 
-> [!NOTE]
-> This is a version of ICICLE specifically meant for integration with the Gnark codebase.
+> [!WARNING]
+> This is a standalone version of ICICLE specifically meant for integration with the Gnark codebase. It is **NOT** meant to be used together with the main ICICLE repo
 > If you are looking for the main ICICLE repo, you can find it [here](https://github.com/ingonyama-zk/icicle)
 
 <div align="center">
