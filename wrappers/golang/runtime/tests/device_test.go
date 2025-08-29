@@ -59,6 +59,9 @@ func TestWarmUpDevice(t *testing.T) {
 	stream, err := runtime.CreateStream()
 	assert.Equal(t, runtime.Success, err)
 	err = runtime.WarmUpDevice(stream)
+	if err == runtime.ApiNotImplemented {
+		t.Skipf("WarmUpDevice() function is not implemented on %s device", DEVICE.GetDeviceType())
+	}
 	assert.Equal(t, runtime.Success, err)
 	err = runtime.SynchronizeStream(stream)
 	assert.Equal(t, runtime.Success, err)
