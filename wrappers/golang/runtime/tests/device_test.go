@@ -55,6 +55,17 @@ func TestDeviceProperties(t *testing.T) {
 	assert.Equal(t, runtime.Success, err)
 }
 
+func TestWarmUpDevice(t *testing.T) {
+	stream, err := runtime.CreateStream()
+	assert.Equal(t, runtime.Success, err)
+	err = runtime.WarmUpDevice(stream)
+	assert.Equal(t, runtime.Success, err)
+	err = runtime.SynchronizeStream(stream)
+	assert.Equal(t, runtime.Success, err)
+	err = runtime.DestroyStream(stream)
+	assert.Equal(t, runtime.Success, err)
+}
+
 func TestActiveDevice(t *testing.T) {
 	runtime.SetDevice(&DEVICE)
 	activeDevice, err := runtime.GetActiveDevice()

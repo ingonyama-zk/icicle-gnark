@@ -44,7 +44,7 @@ If you wish to build for a specific curve, for example bn254, without G2 or ECNT
 To run the tests for curve bn254.
 
 ```sh
-go test ./wrappers/golang_v3/curves/bn254/tests -count=1 -v
+go test ./wrappers/golang/curves/bn254/tests -count=1 -v
 ```
 
 To run all the tests in the golang bindings
