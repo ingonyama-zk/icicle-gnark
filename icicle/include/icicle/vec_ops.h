@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <cstdint>
 
 #include "errors.h"
 #include "runtime.h"
@@ -116,6 +117,34 @@ namespace icicle {
   eIcicleError vector_mul(const T* vec_a, const T* vec_b, uint64_t size, const VecOpsConfig& config, T* output);
 
   /**
+   * @brief Cyclically shifts each vector to the left by one element.
+   *
+   * @tparam T Type of the elements in the vectors.
+   * @param input Pointer to the input vector(s).
+   *              - If `config.batch_size > 1`, this should be a concatenated array of vectors.
+   *              - The layout depends on `config.columns_batch`.
+   * @param size Number of elements in each vector.
+   * @param config Configuration for the operation.
+   * @param output Pointer to the output vector(s) where the shifted vectors will be stored.
+   * @return eIcicleError Error code indicating success or failure.
+   */
+  template <typename T>
+  eIcicleError vector_shift(const T* input, uint64_t size, const VecOpsConfig& config, T* output);
+
+  /**
+   * @brief Computes multiplicative inverses element-wise using batched inversion internally.
+   *
+   * @tparam T Type of the field elements.
+   * @param input Pointer to the input vector(s).
+   * @param size Number of elements in each vector.
+   * @param config Configuration for the operation.
+   * @param output Pointer to the output vector(s) where inverses will be stored.
+   * @return eIcicleError Error code indicating success or failure.
+   */
+  template <typename T>
+  eIcicleError vector_batch_inverse(const T* input, uint64_t size, const VecOpsConfig& config, T* output);
+
+  /**
    * @brief Converts elements to and from Montgomery form.
    *
    * @tparam T Type of the elements.
@@ -152,5 +181,62 @@ namespace icicle {
    */
   template <typename T>
   eIcicleError scalar_mul_vec(const T* scalar_a, const T* vec_b, uint64_t size, const VecOpsConfig& config, T* output);
+
+  /**
+   * @brief Adds a scalar to each element of a vector.
+   *
+   * @tparam T Type of the elements in the vector and the scalar.
+   * @param scalar_a Pointer to Input scalar(s).
+   * @param vec_b Pointer to the input vector(s).
+   *              - If `config.batch_size > 1`, this should be a concatenated array of vectors.
+   *              - The layout depends on `config.columns_batch`:
+   *                - If `false`, vectors are stored contiguously.
+   *                - If `true`, vectors are stored as columns in a 2D array.
+   * @param size Number of elements in a vector.
+   * @param config Configuration for the operation.
+   * @param output Pointer to the output vector(s) where the results will be stored.
+   * @return eIcicleError Error code indicating success or failure.
+   */
+  template <typename T>
+  eIcicleError scalar_add_vec(const T* scalar_a, const T* vec_b, uint64_t size, const VecOpsConfig& config, T* output);
+
+  /**
+   * @brief Evaluates a canonical polynomial at a single point.
+   *
+   * Coefficients are expected in regular canonical order:
+   * f(x) = sum_i coeffs[i] * x^i.
+   */
+  template <typename T>
+  eIcicleError poly_eval_at(const T* coeffs, uint64_t n, const T* point, const VecOpsConfig& config, T* output);
+
+  /**
+   * @brief Evaluates a canonical polynomial at a single point where coefficients
+   * are stored in bit-reversed order.
+   *
+   * The coefficient corresponding to degree i is read from index
+   * reverse_bits(i) >> mm.
+   */
+  template <typename T>
+  eIcicleError poly_eval_at_bit_reverse(
+    const T* coeffs, uint64_t n, uint64_t mm, const T* point, const VecOpsConfig& config, T* output);
+
+  /**
+   * @brief Builds support values for identity permutation across multiple copies.
+   *
+   * For each copy c in [0, nb_copies) and each i in [0, size_poly):
+   * output[c*size_poly+i] = omega^i * shift^c.
+   */
+  template <typename T>
+  eIcicleError support_identity(
+    const T* omega, const T* shift, uint64_t size_poly, uint64_t nb_copies, const VecOpsConfig& config, T* output);
+
+  /**
+   * @brief Gathers elements from input using an index vector.
+   *
+   * output[i] = input[indices[i]] for i in [0, size).
+   */
+  template <typename T>
+  eIcicleError gather_by_indices(
+    const T* input, uint64_t input_size, const int64_t* indices, uint64_t size, const VecOpsConfig& config, T* output);
 
 } // namespace icicle

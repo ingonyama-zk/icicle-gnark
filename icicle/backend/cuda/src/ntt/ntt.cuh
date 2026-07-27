@@ -1,7 +1,11 @@
 
 
+#include <cstdint>
+#include <cstdlib>
+#include <chrono>
+#include <atomic>
+#include <iostream>
 #include <unordered_map>
-#include <vector>
 #include <type_traits>
 
 #include "icicle/backend/ntt_backend.h"
@@ -15,6 +19,7 @@
 #include "gpu-utils/error_handler.h"
 #include "mixed_radix_ntt.cuh"
 #include "ntt/cuda_ntt_config.cuh"
+#include "icicle/utils/log.h"
 #include "icicle/utils/utils.h"
 
 #include "icicle/fields/field_config.h"
@@ -23,11 +28,11 @@ using namespace field_config;
 #include <mutex>
 
 #ifdef CURVE_ID
-#include "icicle/curves/curve_config.h"
+  #include "icicle/curves/curve_config.h"
 using namespace curve_config;
-#define IS_ECNTT std::is_same_v<E, projective_t>
+  #define IS_ECNTT std::is_same_v<E, projective_t>
 #else
-#define IS_ECNTT false
+  #define IS_ECNTT false
 #endif
 
 namespace ntt {
@@ -41,6 +46,55 @@ namespace ntt {
     // size limited by on-device memory
     const uint32_t MAX_SHARED_MEM_ELEMENT_SIZE = 32; // TODO: occupancy calculator, hardcoded for sm_86..sm_89
     const uint32_t MAX_SHARED_MEM = MAX_SHARED_MEM_ELEMENT_SIZE * MAX_NUM_THREADS;
+    static inline std::mutex ntt_profile_log_mutex;
+
+    inline bool is_env_flag_enabled(const char* key)
+    {
+      const char* value = std::getenv(key);
+      if (!value || value[0] == '\0') return false;
+      const char c = value[0];
+      return !(c == '0' || c == 'f' || c == 'F' || c == 'n' || c == 'N');
+    }
+
+    inline bool is_ntt_full_profile_enabled()
+    {
+      static const bool enabled = is_env_flag_enabled("ICICLE_NTT_PROFILE_FULL");
+      return enabled;
+    }
+
+    inline bool is_arbitrary_coset_profile_enabled()
+    {
+      static const bool enabled = true;
+      return enabled;
+    }
+
+    template <typename S>
+    __device__ __forceinline__ S pow_u64(S base, uint64_t exp)
+    {
+      S result = S::one();
+      while (exp > 0) {
+        if (exp & 1) result = result * base;
+        base = base * base;
+        exp >>= 1;
+      }
+      return result;
+    }
+
+    template <typename S>
+    __global__ void generate_arbitrary_coset_powers_kernel(S* out, uint64_t size, S coset_gen)
+    {
+      const uint64_t tid = uint64_t(blockIdx.x) * blockDim.x + threadIdx.x;
+      const uint64_t stride = uint64_t(gridDim.x) * blockDim.x;
+      if (tid >= size) return;
+
+      // Each thread computes g^tid once, then advances by multiplying with g^stride.
+      S cur = pow_u64(coset_gen, tid);
+      const S step = pow_u64(coset_gen, stride);
+      for (uint64_t i = tid; i < size; i += stride) {
+        out[i] = cur;
+        cur = cur * step;
+      }
+    }
 
     template <typename E>
     __global__ void reverse_order_kernel(const E* arr, E* arr_reversed, uint32_t n, uint32_t logn, uint32_t batch_size)
@@ -409,6 +463,7 @@ namespace ntt {
     S* twiddles = nullptr;
     bool initialized = false; // protection for multi-threaded case
     std::unordered_map<S, int> coset_index = {};
+    std::unordered_map<S, S*> arbitrary_coset_cache = {};
 
     S* internal_twiddles = nullptr; // required by mixed-radix NTT
     S* basic_twiddles = nullptr;    // required by mixed-radix NTT
@@ -439,6 +494,15 @@ namespace ntt {
     CHK_INIT_IF_RETURN();
 
     Domain& domain = domains_for_devices[ctx.device_id];
+    const bool profile_ntt_full = is_ntt_full_profile_enabled();
+    const auto init_total_start =
+      profile_ntt_full ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+    const bool fast_twiddles_requested = fast_twiddles_mode;
+    bool initialized_now = false;
+    double twiddles_gen_ms = 0.0;
+    double fast_twiddles_ms = 0.0;
+    double sync_ms = 0.0;
+    double coset_map_ms = 0.0;
 
     // only generate twiddles if they haven't been generated yet
     // please note that this offers just basic thread-safety,
@@ -450,6 +514,7 @@ namespace ntt {
       // double check locking
       if (domain.initialized) return CHK_LAST(); // another thread is already initializing the domain
 
+      initialized_now = true;
       bool found_logn = false;
       S omega = primitive_root;
       unsigned omegas_count = S::get_omegas_count();
@@ -471,13 +536,21 @@ namespace ntt {
       // allocate and calculate twiddles on GPU
       // Note: radix-2 INTT needs ONE in last element (in addition to first element), therefore have n+1 elements
       // Managed allocation allows host to read the elements (logn) without copying all (n) TFs back to host
+      const auto twiddles_gen_start =
+        profile_ntt_full ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
       CHK_IF_RETURN(cudaMallocManaged(&domain.twiddles, (domain.max_size + 1) * sizeof(S)));
       CHK_IF_RETURN(mxntt::generate_external_twiddles_generic(
         primitive_root, domain.twiddles, domain.internal_twiddles, domain.basic_twiddles, domain.max_log_size,
         ctx.stream));
+      if (profile_ntt_full) {
+        twiddles_gen_ms =
+          std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - twiddles_gen_start).count();
+      }
 
       fast_twiddles_mode &= domain.max_log_size >= 4; // fast twiddles cannot be built for smaller domain
       if (fast_twiddles_mode) {
+        const auto fast_twiddles_start =
+          profile_ntt_full ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
         // generating fast-twiddles (note that this cost 4N additional memory)
         CHK_IF_RETURN(cudaMallocAsync(&domain.fast_external_twiddles, domain.max_size * sizeof(S) * 2, ctx.stream));
         CHK_IF_RETURN(cudaMallocAsync(&domain.fast_external_twiddles_inv, domain.max_size * sizeof(S) * 2, ctx.stream));
@@ -494,10 +567,21 @@ namespace ntt {
         CHK_IF_RETURN(mxntt::generate_external_twiddles_fast_twiddles_mode(
           primitive_root_inv, domain.fast_external_twiddles_inv, domain.fast_internal_twiddles_inv,
           domain.fast_basic_twiddles_inv, domain.max_log_size, ctx.stream));
+        if (profile_ntt_full) {
+          fast_twiddles_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - fast_twiddles_start).count();
+        }
       }
+      const auto sync_start =
+        profile_ntt_full ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
       CHK_IF_RETURN(cudaStreamSynchronize(ctx.stream));
+      if (profile_ntt_full) {
+        sync_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - sync_start).count();
+      }
 
       const bool is_map_only_powers_of_primitive_root = true;
+      const auto coset_map_start =
+        profile_ntt_full ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
       if (is_map_only_powers_of_primitive_root) {
         // populate the coset_index map. Note that only powers of the primitive-root are stored (1, PR, PR^2, PR ^ 4, PR
         // ^ 8 etc.)
@@ -512,7 +596,25 @@ namespace ntt {
           domain.coset_index[domain.twiddles[i]] = i;
         }
       }
+      if (profile_ntt_full) {
+        coset_map_ms =
+          std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - coset_map_start).count();
+      }
       domain.initialized = true;
+    }
+
+    if (profile_ntt_full) {
+      const double total_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - init_total_start).count();
+      std::lock_guard<std::mutex> lock(ntt_profile_log_mutex);
+      std::cerr << "[ICICLE][NTT_PROFILE_FULL] init_domain"
+                << " device_id=" << ctx.device_id << " initialized_now=" << (initialized_now ? "1" : "0")
+                << " max_size=" << domain.max_size << " max_log_size=" << domain.max_log_size
+                << " fast_twiddles_requested=" << (fast_twiddles_requested ? "1" : "0")
+                << " fast_twiddles_built=" << ((domain.fast_external_twiddles != nullptr) ? "1" : "0")
+                << " twiddles_gen_ms=" << twiddles_gen_ms << " fast_twiddles_ms=" << fast_twiddles_ms
+                << " stream_sync_ms=" << sync_ms << " coset_map_ms=" << coset_map_ms << " total_ms=" << total_ms
+                << std::endl;
     }
 
     return CHK_LAST();
@@ -533,6 +635,10 @@ namespace ntt {
     CHK_IF_RETURN(cudaFreeAsync(domain.basic_twiddles, ctx.stream));
     domain.basic_twiddles = nullptr;
     domain.coset_index.clear();
+    for (auto it = domain.arbitrary_coset_cache.begin(); it != domain.arbitrary_coset_cache.end(); ++it) {
+      CHK_IF_RETURN(cudaFreeAsync(it->second, ctx.stream));
+    }
+    domain.arbitrary_coset_cache.clear();
 
     CHK_IF_RETURN(cudaFreeAsync(domain.fast_external_twiddles, ctx.stream));
     domain.fast_external_twiddles = nullptr;
@@ -647,6 +753,31 @@ namespace ntt {
 
     cudaStream_t cuda_stream = reinterpret_cast<cudaStream_t>(config.stream);
     Domain<S>& domain = Domain<S>::domains_for_devices[device_id];
+    const bool profile_ntt_full = is_ntt_full_profile_enabled();
+    using profile_clock = std::chrono::steady_clock;
+    const auto total_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
+    static std::atomic<uint64_t> ntt_profile_call_counter{0};
+    uint64_t profile_call_id = 0;
+    if (profile_ntt_full) {
+      profile_call_id = ntt_profile_call_counter.fetch_add(1, std::memory_order_relaxed) + 1;
+      if (profile_call_id == 1) {
+        std::lock_guard<std::mutex> lock(ntt_profile_log_mutex);
+        std::cerr << "[ICICLE][NTT_PROFILE_FULL] enabled via ICICLE_NTT_PROFILE_FULL"
+                  << " (per-call ntt_cuda and init_domain timings)" << std::endl;
+      }
+    }
+
+    double input_prepare_ms = 0.0;
+    double output_prepare_ms = 0.0;
+    double coset_prepare_ms = 0.0;
+    double ntt_execute_ms = 0.0;
+    double output_copy_ms = 0.0;
+    double cleanup_ms = 0.0;
+    double stream_sync_ms = 0.0;
+    bool arbitrary_coset_used = false;
+    bool arbitrary_coset_cache_hit = false;
+    bool used_radix2_algorithm = true;
+    bool used_fast_twiddles = false;
 
     if (size > domain.max_size) {
       std::ostringstream oss;
@@ -667,56 +798,129 @@ namespace ntt {
     size_t input_size_bytes = (size_t)size * batch_size * sizeof(E);
     bool are_inputs_on_device = config.are_inputs_on_device;
     bool are_outputs_on_device = config.are_outputs_on_device;
+    auto emit_profile = [&](const char* sync_mode) {
+      if (!profile_ntt_full) return;
+      const double total_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - total_start).count();
+      std::lock_guard<std::mutex> lock(ntt_profile_log_mutex);
+      std::cerr << "[ICICLE][NTT_PROFILE_FULL] ntt_cuda"
+                << " call_id=" << profile_call_id << " device_id=" << device_id
+                << " dir=" << (dir == NTTDir::kInverse ? "inverse" : "forward") << " size=" << size
+                << " batch=" << batch_size << " ordering=" << static_cast<uint32_t>(config.ordering)
+                << " in_dev=" << (are_inputs_on_device ? "1" : "0")
+                << " out_dev=" << (are_outputs_on_device ? "1" : "0")
+                << " arbitrary_coset_used=" << (arbitrary_coset_used ? "1" : "0")
+                << " arbitrary_coset_cache_hit=" << (arbitrary_coset_cache_hit ? "1" : "0")
+                << " radix2=" << (used_radix2_algorithm ? "1" : "0")
+                << " fast_twiddles=" << (used_fast_twiddles ? "1" : "0") << " input_prepare_ms=" << input_prepare_ms
+                << " output_prepare_ms=" << output_prepare_ms << " coset_prepare_ms=" << coset_prepare_ms
+                << " ntt_execute_ms=" << ntt_execute_ms << " output_copy_ms=" << output_copy_ms
+                << " cleanup_ms=" << cleanup_ms << " stream_sync_ms=" << stream_sync_ms << " total_ms=" << total_ms
+                << " sync_mode=" << sync_mode << std::endl;
+    };
 
     const E* d_input;
     E* d_allocated_input = nullptr;
     if (are_inputs_on_device) {
       d_input = input;
     } else {
+      const auto step_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
       CHK_IF_RETURN(cudaMallocAsync(&d_allocated_input, input_size_bytes, cuda_stream));
       CHK_IF_RETURN(cudaMemcpyAsync(d_allocated_input, input, input_size_bytes, cudaMemcpyHostToDevice, cuda_stream));
       d_input = d_allocated_input;
+      if (profile_ntt_full) {
+        input_prepare_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - step_start).count();
+      }
     }
     E* d_output;
     E* d_allocated_output = nullptr;
     if (are_outputs_on_device) {
       d_output = output;
     } else {
+      const auto step_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
       CHK_IF_RETURN(cudaMallocAsync(&d_allocated_output, input_size_bytes, cuda_stream));
       d_output = d_allocated_output;
+      if (profile_ntt_full) {
+        output_prepare_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - step_start).count();
+      }
     }
 
     S* coset = nullptr;
     int coset_index = 0;
+    const auto coset_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
     try {
       coset_index = domain.coset_index.at(config.coset_gen);
     } catch (...) {
-      // if coset index is not found in the subgroup, compute coset powers on CPU and move them to device
-      std::vector<S> h_coset;
-      h_coset.push_back(S::one());
-      S coset_gen = (dir == NTTDir::kInverse) ? S::inverse(config.coset_gen) : config.coset_gen;
-      for (int i = 1; i < size; i++) {
-        h_coset.push_back(h_coset.at(i - 1) * coset_gen);
+      arbitrary_coset_used = true;
+      const bool profile_arbitrary_coset = is_arbitrary_coset_profile_enabled();
+      const auto profile_start = profile_arbitrary_coset ? profile_clock::now() : profile_clock::time_point{};
+      bool cache_hit = false;
+
+      // Fallback for arbitrary cosets: cache [1, g, g^2, ...] on device and reuse it across calls.
+      const S coset_gen = (dir == NTTDir::kInverse) ? S::inverse(config.coset_gen) : config.coset_gen;
+      {
+        std::lock_guard<std::mutex> lock(Domain<S>::device_domain_mutex);
+        auto it = domain.arbitrary_coset_cache.find(coset_gen);
+        if (it != domain.arbitrary_coset_cache.end()) {
+          coset = it->second;
+          cache_hit = true;
+        }
       }
-      CHK_IF_RETURN(cudaMallocAsync(&coset, size * sizeof(S), cuda_stream));
-      CHK_IF_RETURN(cudaMemcpyAsync(coset, &h_coset.front(), size * sizeof(S), cudaMemcpyHostToDevice, cuda_stream));
-      h_coset.clear();
+
+      if (!coset) {
+        const size_t coset_size = static_cast<size_t>(domain.max_size);
+        const size_t coset_bytes = coset_size * sizeof(S);
+        S* d_coset = nullptr;
+        CHK_IF_RETURN(cudaMallocAsync(&d_coset, coset_bytes, cuda_stream));
+        const uint32_t threads = 256;
+        uint64_t blocks64 = (coset_size + threads - 1) / threads;
+        if (blocks64 > 4096ULL) blocks64 = 4096ULL;
+        const uint32_t blocks = static_cast<uint32_t>(blocks64);
+        generate_arbitrary_coset_powers_kernel<<<blocks, threads, 0, cuda_stream>>>(
+          d_coset, static_cast<uint64_t>(coset_size), coset_gen);
+        CHK_IF_RETURN(CHK_LAST());
+        CHK_IF_RETURN(cudaStreamSynchronize(cuda_stream)); // publish cache entry only after generation is complete
+
+        std::lock_guard<std::mutex> lock(Domain<S>::device_domain_mutex);
+        auto insert_result = domain.arbitrary_coset_cache.emplace(coset_gen, d_coset);
+        if (insert_result.second) {
+          coset = d_coset;
+        } else {
+          CHK_IF_RETURN(cudaFreeAsync(d_coset, cuda_stream));
+          coset = insert_result.first->second;
+          cache_hit = true;
+        }
+      }
+      arbitrary_coset_cache_hit = cache_hit;
+
+      if (profile_arbitrary_coset) {
+        const double total_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - profile_start).count();
+        std::lock_guard<std::mutex> lock(ntt_profile_log_mutex);
+        std::cerr << "[ICICLE][NTT_PROFILE_ARBITRARY_COSET]"
+                  << " cache=" << (cache_hit ? "hit" : "miss") << " size=" << size << " domain_size=" << domain.max_size
+                  << " total_ms=" << total_ms << std::endl;
+      }
+    }
+    if (profile_ntt_full) {
+      coset_prepare_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - coset_start).count();
     }
 
     const bool is_inverse = dir == NTTDir::kInverse;
+    const auto ntt_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
 
     if constexpr (IS_ECNTT) {
+      used_radix2_algorithm = true;
       CHK_IF_RETURN(ntt::radix2_ntt(
         d_input, d_output, domain.twiddles, size, domain.max_size, batch_size, is_inverse, config.ordering, coset,
         coset_index, cuda_stream));
     } else {
-      const bool is_radix2_algorithm = is_choosing_radix2_algorithm(logn, batch_size, config);
-      if (is_radix2_algorithm) {
+      used_radix2_algorithm = is_choosing_radix2_algorithm(logn, batch_size, config);
+      if (used_radix2_algorithm) {
         CHK_IF_RETURN(ntt::radix2_ntt(
           d_input, d_output, domain.twiddles, size, domain.max_size, batch_size, is_inverse, config.ordering, coset,
           coset_index, cuda_stream));
       } else {
         const bool is_fast_twiddles_enabled = (domain.fast_external_twiddles != nullptr);
+        used_fast_twiddles = is_fast_twiddles_enabled;
         S* twiddles = is_fast_twiddles_enabled
                         ? (is_inverse ? domain.fast_external_twiddles_inv : domain.fast_external_twiddles)
                         : domain.twiddles;
@@ -733,14 +937,35 @@ namespace ntt {
           cuda_stream));
       }
     }
+    if (profile_ntt_full) {
+      ntt_execute_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - ntt_start).count();
+    }
 
-    if (!are_outputs_on_device)
+    if (!are_outputs_on_device) {
+      const auto step_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
       CHK_IF_RETURN(cudaMemcpyAsync(output, d_output, input_size_bytes, cudaMemcpyDeviceToHost, cuda_stream));
+      if (profile_ntt_full) {
+        output_copy_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - step_start).count();
+      }
+    }
 
-    if (coset) CHK_IF_RETURN(cudaFreeAsync(coset, cuda_stream));
+    const auto cleanup_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
     if (d_allocated_input) CHK_IF_RETURN(cudaFreeAsync(d_allocated_input, cuda_stream));
     if (d_allocated_output) CHK_IF_RETURN(cudaFreeAsync(d_allocated_output, cuda_stream));
-    if (!config.is_async) return CHK_STICKY(cudaStreamSynchronize(cuda_stream));
+    if (profile_ntt_full) {
+      cleanup_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - cleanup_start).count();
+    }
+    if (!config.is_async) {
+      const auto sync_start = profile_ntt_full ? profile_clock::now() : profile_clock::time_point{};
+      cudaError_t sync_err = CHK_STICKY(cudaStreamSynchronize(cuda_stream));
+      if (profile_ntt_full) {
+        stream_sync_ms = std::chrono::duration<double, std::milli>(profile_clock::now() - sync_start).count();
+      }
+      emit_profile("sync");
+      return sync_err;
+    }
+
+    emit_profile("async");
 
     return CHK_LAST();
   }

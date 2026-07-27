@@ -6,6 +6,8 @@ import (
 	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
 	bw6_761 "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bw6761"
 	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/curves/bw6761/vecOps"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/test_helpers"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,12 +36,37 @@ func testBw6_761VecOps(suite *suite.Suite) {
 	suite.Equal(a, out3)
 }
 
+func testBw6_761BatchInverseVecInPlaceOnDevice(suite *suite.Suite) {
+	test_helpers.ActivateMainDevice()
+
+	testSize := 1 << 14
+	in := make(core.HostSlice[bw6_761.ScalarField], testSize)
+	expected := make(core.HostSlice[bw6_761.ScalarField], testSize)
+	for i := range in {
+		in[i].FromUint32(uint32(i + 1))
+		expected[i] = in[i].Inv()
+	}
+
+	var deviceInOut core.DeviceSlice
+	in.CopyToDevice(&deviceInOut, true)
+	defer deviceInOut.Free()
+
+	cfg := core.DefaultVecOpsConfig()
+	err := vecOps.BatchInverseVec(deviceInOut, deviceInOut, cfg)
+	suite.Equal(runtime.Success, err, "BatchInverseVec in-place failed")
+
+	actual := make(core.HostSlice[bw6_761.ScalarField], testSize)
+	actual.CopyFromDevice(&deviceInOut)
+	suite.Equal(expected, actual)
+}
+
 type Bw6_761VecOpsTestSuite struct {
 	suite.Suite
 }
 
 func (s *Bw6_761VecOpsTestSuite) TestBw6_761VecOps() {
 	s.Run("TestBw6_761VecOps", testWrapper(&s.Suite, testBw6_761VecOps))
+	s.Run("TestBw6_761BatchInverseVecInPlaceOnDevice", testWrapper(&s.Suite, testBw6_761BatchInverseVecInPlaceOnDevice))
 }
 
 func TestSuiteBw6_761VecOps(t *testing.T) {
