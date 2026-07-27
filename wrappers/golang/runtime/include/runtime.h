@@ -24,6 +24,8 @@ int icicle_free_async(void* ptr, void* stream);
 int icicle_memset(void* ptr, int value, size_t size);
 int icicle_memset_async(void* ptr, int value, size_t size, void* stream);
 int icicle_get_available_memory(size_t* total, size_t* free);
+int icicle_copy(void* dst, const void* src, size_t size);
+int icicle_copy_async(void* dst, const void* src, size_t size, void* stream);
 int icicle_copy_to_host(void* dst, const void* src, size_t size);
 int icicle_copy_to_host_async(void* dst, const void* src, size_t size, void* stream);
 int icicle_copy_to_device(void* dst, const void* src, size_t size);

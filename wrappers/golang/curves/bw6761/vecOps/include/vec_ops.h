@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifndef _BW6_761_VEC_OPS_H
 #define _BW6_761_VEC_OPS_H
@@ -30,6 +31,88 @@ int bw6_761_vector_add(
 int bw6_761_vector_sub(
   scalar_t* vec_a,
   scalar_t* vec_b,
+  int n,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_vector_shift(
+  scalar_t* vec_in,
+  int n,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_vector_batch_inverse(
+  scalar_t* vec_in,
+  int n,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_scalar_mul_vec(
+  scalar_t* scalar_a,
+  scalar_t* vec_b,
+  int n,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_scalar_add_vec(
+  scalar_t* scalar_a,
+  scalar_t* vec_b,
+  int n,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_merge_shards_bit_reverse(
+  scalar_t** shards,
+  int rho,
+  int n,
+  unsigned long long mm,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_poly_eval_at(
+  scalar_t* coeffs,
+  int n,
+  scalar_t* point,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_poly_eval_at_bit_reverse(
+  scalar_t* coeffs,
+  int n,
+  unsigned long long mm,
+  scalar_t* point,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_divide_by_x_minus_a(
+  scalar_t* coeffs,
+  int n,
+  scalar_t* point,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_support_identity(
+  scalar_t* omega,
+  scalar_t* shift,
+  int size_poly,
+  int nb_copies,
+  VecOpsConfig* config,
+  scalar_t* result
+);
+
+int bw6_761_gather_by_indices(
+  scalar_t* input,
+  int input_size,
+  int64_t* indices,
   int n,
   VecOpsConfig* config,
   scalar_t* result

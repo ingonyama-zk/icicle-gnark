@@ -94,3 +94,72 @@ func VecOpCheck(a, b, out HostOrDeviceSlice, cfg *VecOpsConfig) (unsafe.Pointer,
 
 	return a.AsUnsafePointer(), b.AsUnsafePointer(), out.AsUnsafePointer(), unsafe.Pointer(cfg), a.Len()
 }
+
+// ScalarVecOpCheck validates and prepares pointers for scalar-vector operations.
+// scalar must be a single scalar (length 1).
+// vec and out must have the same length.
+func ScalarVecOpCheck(scalar, vec, out HostOrDeviceSlice, cfg *VecOpsConfig) (unsafe.Pointer, unsafe.Pointer, unsafe.Pointer, unsafe.Pointer, int) {
+	scalarLen, vecLen, outLen := scalar.Len(), vec.Len(), out.Len()
+
+	// Validate scalar length: must be exactly 1 (single scalar only)
+	if scalarLen != 1 {
+		errorString := fmt.Sprintf(
+			"scalar length must be 1 (single scalar), got %d",
+			scalarLen,
+		)
+		panic(errorString)
+	}
+
+	// Validate vec and out have the same length
+	if vecLen != outLen {
+		errorString := fmt.Sprintf(
+			"vec and out vector lengths %d; %d are not equal",
+			vecLen,
+			outLen,
+		)
+		panic(errorString)
+	}
+
+	if scalar.IsOnDevice() {
+		scalar.(DeviceSlice).CheckDevice()
+	}
+	if vec.IsOnDevice() {
+		vec.(DeviceSlice).CheckDevice()
+	}
+	if out.IsOnDevice() {
+		out.(DeviceSlice).CheckDevice()
+	}
+
+	cfg.isAOnDevice = scalar.IsOnDevice()
+	cfg.isBOnDevice = vec.IsOnDevice()
+	cfg.isResultOnDevice = out.IsOnDevice()
+
+	return scalar.AsUnsafePointer(), vec.AsUnsafePointer(), out.AsUnsafePointer(), unsafe.Pointer(cfg), vecLen
+}
+
+// UnaryVecOpCheck validates and prepares pointers for unary vector operations.
+// in and out must have the same length.
+func UnaryVecOpCheck(in, out HostOrDeviceSlice, cfg *VecOpsConfig) (unsafe.Pointer, unsafe.Pointer, unsafe.Pointer, int) {
+	inLen, outLen := in.Len(), out.Len()
+	if inLen != outLen {
+		errorString := fmt.Sprintf(
+			"in and out vector lengths %d; %d are not equal",
+			inLen,
+			outLen,
+		)
+		panic(errorString)
+	}
+
+	if in.IsOnDevice() {
+		in.(DeviceSlice).CheckDevice()
+	}
+	if out.IsOnDevice() {
+		out.(DeviceSlice).CheckDevice()
+	}
+
+	cfg.isAOnDevice = in.IsOnDevice()
+	cfg.isBOnDevice = false
+	cfg.isResultOnDevice = out.IsOnDevice()
+
+	return in.AsUnsafePointer(), out.AsUnsafePointer(), unsafe.Pointer(cfg), inLen
+}

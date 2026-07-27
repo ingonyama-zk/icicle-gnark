@@ -168,18 +168,34 @@ func (f ScalarField) Sqr() ScalarField {
 	return res
 }
 
-func convertScalarsMontgomery(scalars core.HostOrDeviceSlice, isInto bool) runtime.EIcicleError {
-	defaultCfg := core.DefaultVecOpsConfig()
-	cValues, _, _, cCfg, cSize := core.VecOpCheck(scalars, scalars, scalars, &defaultCfg)
+func convertScalarsMontgomeryWithConfig(scalars core.HostOrDeviceSlice, cfg *core.VecOpsConfig, isInto bool) runtime.EIcicleError {
+	localCfg := cfg
+	if localCfg == nil {
+		defaultCfg := core.DefaultVecOpsConfig()
+		localCfg = &defaultCfg
+	}
+	cValues, _, _, cCfg, cSize := core.VecOpCheck(scalars, scalars, scalars, localCfg)
 	cErr := C.bls12_377_scalar_convert_montgomery((*C.scalar_t)(cValues), (C.size_t)(cSize), (C._Bool)(isInto), (*C.VecOpsConfig)(cCfg), (*C.scalar_t)(cValues))
 	err := runtime.EIcicleError(cErr)
 	return err
 }
 
+func convertScalarsMontgomery(scalars core.HostOrDeviceSlice, isInto bool) runtime.EIcicleError {
+	return convertScalarsMontgomeryWithConfig(scalars, nil, isInto)
+}
+
+func ToMontgomeryWithConfig(scalars core.HostOrDeviceSlice, cfg *core.VecOpsConfig) runtime.EIcicleError {
+	return convertScalarsMontgomeryWithConfig(scalars, cfg, true)
+}
+
 func ToMontgomery(scalars core.HostOrDeviceSlice) runtime.EIcicleError {
-	return convertScalarsMontgomery(scalars, true)
+	return ToMontgomeryWithConfig(scalars, nil)
+}
+
+func FromMontgomeryWithConfig(scalars core.HostOrDeviceSlice, cfg *core.VecOpsConfig) runtime.EIcicleError {
+	return convertScalarsMontgomeryWithConfig(scalars, cfg, false)
 }
 
 func FromMontgomery(scalars core.HostOrDeviceSlice) runtime.EIcicleError {
-	return convertScalarsMontgomery(scalars, false)
+	return FromMontgomeryWithConfig(scalars, nil)
 }

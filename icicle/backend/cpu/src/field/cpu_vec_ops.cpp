@@ -22,6 +22,7 @@ enum VecOperation {
   CONVERT_TO_MONTGOMERY,
   CONVERT_FROM_MONTGOMERY,
   SCALAR_MUL_VEC,
+  SCALAR_ADD_VEC,
 
   NOF_VECTOR_OPERATIONS
 };
@@ -116,6 +117,13 @@ private:
       m_output[m_stride * i] = *m_op_a * m_op_b[m_stride * i];
     }
   }
+  // Single worker functionality to execute scalar + vector
+  void scalar_add_vec()
+  {
+    for (uint64_t i = 0; i < m_nof_operations; ++i) {
+      m_output[m_stride * i] = *m_op_a + m_op_b[m_stride * i];
+    }
+  }
 
   // An array of available function pointers arranged according to the VecOperation enum
   using FunctionPtr = void (VectorOpTask::*)();
@@ -126,6 +134,7 @@ private:
     &VectorOpTask::convert_to_montgomery,   // CONVERT_TO_MONTGOMERY,
     &VectorOpTask::convert_from_montgomery, // CONVERT_FROM_MONTGOMERY,
     &VectorOpTask::scalar_mul_vec,          // SCALAR_MUL_VEC,
+    &VectorOpTask::scalar_add_vec,          // SCALAR_ADD_VEC,
 
   };
 
@@ -163,6 +172,16 @@ int get_nof_workers(const VecOpsConfig& config)
   return ((hw_threads > 1) ? hw_threads - 1 : 1); // reduce 1 for the main
 }
 
+static inline uint64_t reverse_bits_u64(uint64_t v)
+{
+  v = ((v & 0x5555555555555555ULL) << 1) | ((v >> 1) & 0x5555555555555555ULL);
+  v = ((v & 0x3333333333333333ULL) << 2) | ((v >> 2) & 0x3333333333333333ULL);
+  v = ((v & 0x0f0f0f0f0f0f0f0fULL) << 4) | ((v >> 4) & 0x0f0f0f0f0f0f0f0fULL);
+  v = ((v & 0x00ff00ff00ff00ffULL) << 8) | ((v >> 8) & 0x00ff00ff00ff00ffULL);
+  v = ((v & 0x0000ffff0000ffffULL) << 16) | ((v >> 16) & 0x0000ffff0000ffffULL);
+  return (v << 32) | (v >> 32);
+}
+
 // Execute a full task from the type vector = vector (op) vector
 template <typename T>
 eIcicleError
@@ -180,21 +199,19 @@ cpu_2vectors_op(VecOperation op, const T* vec_a, const T* vec_b, uint64_t size, 
 }
 
 // Execute a full task from the type vector = scalar (op) vector
+// scalar_a must be a single scalar (not an array)
 template <typename T>
 eIcicleError cpu_scalar_vector_op(
   VecOperation op, const T* scalar_a, const T* vec_b, uint64_t size, const VecOpsConfig& config, T* output)
 {
   TasksManager<VectorOpTask<T>> task_manager(get_nof_workers(config) - 1);
-  const uint64_t total_nof_operations = size;
+  const uint64_t total_nof_operations = size * config.batch_size;
   const uint32_t stride = config.columns_batch ? config.batch_size : 1;
-  for (uint32_t idx_in_batch = 0; idx_in_batch < config.batch_size; idx_in_batch++) {
-    for (uint64_t i = 0; i < total_nof_operations; i += NOF_OPERATIONS_PER_TASK) {
-      VectorOpTask<T>* task_p = task_manager.get_idle_or_completed_task();
-      task_p->send_2ops_task(
-        op, std::min((uint64_t)NOF_OPERATIONS_PER_TASK, total_nof_operations - i), scalar_a + idx_in_batch,
-        config.columns_batch ? vec_b + idx_in_batch + i * config.batch_size : vec_b + idx_in_batch * size + i, stride,
-        config.columns_batch ? output + idx_in_batch + i * config.batch_size : output + idx_in_batch * size + i);
-    }
+  for (uint64_t i = 0; i < total_nof_operations; i += NOF_OPERATIONS_PER_TASK) {
+    VectorOpTask<T>* task_p = task_manager.get_idle_or_completed_task();
+    task_p->send_2ops_task(
+      op, std::min((uint64_t)NOF_OPERATIONS_PER_TASK, total_nof_operations - i), scalar_a, vec_b + i, stride,
+      output + i);
   }
   task_manager.wait_done();
   return eIcicleError::SUCCESS;
@@ -232,6 +249,210 @@ eIcicleError cpu_vector_mul(
 
 REGISTER_VECTOR_MUL_BACKEND("CPU", cpu_vector_mul<scalar_t>);
 
+/*********************************** SHIFT ***********************************/
+template <typename T>
+eIcicleError
+cpu_vector_shift(const Device& device, const T* input, uint64_t size, const VecOpsConfig& config, T* output)
+{
+  if (size == 0) { return eIcicleError::SUCCESS; }
+
+  const uint64_t batch = static_cast<uint64_t>(config.batch_size);
+  if (config.columns_batch) {
+    for (uint64_t b = 0; b < batch; ++b) {
+      for (uint64_t i = 0; i < size; ++i) {
+        const uint64_t src_i = (i + 1) % size;
+        output[i * batch + b] = input[src_i * batch + b];
+      }
+    }
+  } else {
+    for (uint64_t b = 0; b < batch; ++b) {
+      const uint64_t base = b * size;
+      for (uint64_t i = 0; i < size; ++i) {
+        output[base + i] = input[base + ((i + 1) % size)];
+      }
+    }
+  }
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_VECTOR_SHIFT_BACKEND("CPU", cpu_vector_shift<scalar_t>);
+
+/*********************************** BATCH INVERSE ***********************************/
+template <typename T>
+eIcicleError
+cpu_vector_batch_inverse(const Device& device, const T* input, uint64_t size, const VecOpsConfig& config, T* output)
+{
+  if (size == 0) { return eIcicleError::SUCCESS; }
+
+  const uint64_t batch = static_cast<uint64_t>(config.batch_size);
+  std::vector<T> original(size);
+
+  for (uint64_t b = 0; b < batch; ++b) {
+    auto idx = [&](uint64_t i) -> uint64_t { return config.columns_batch ? (i * batch + b) : (b * size + i); };
+
+    for (uint64_t i = 0; i < size; ++i) {
+      const uint64_t pos = idx(i);
+      output[pos] = input[pos];
+      original[i] = output[pos];
+    }
+
+    for (uint64_t i = 1; i < size; ++i) {
+      output[idx(i)] = output[idx(i)] * output[idx(i - 1)];
+    }
+
+    T acc = T::inverse(output[idx(size - 1)]);
+    for (uint64_t i = size - 1; i > 0; --i) {
+      output[idx(i)] = acc * output[idx(i - 1)];
+      acc = acc * original[i];
+    }
+    output[idx(0)] = acc;
+  }
+
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_VECTOR_BATCH_INVERSE_BACKEND("CPU", cpu_vector_batch_inverse<scalar_t>);
+
+/*********************************** MERGE SHARDS BIT-REVERSE ***********************************/
+template <typename T>
+eIcicleError cpu_merge_shards_bit_reverse(
+  const Device& device,
+  const T* const* shards,
+  uint64_t rho,
+  uint64_t n,
+  uint64_t mm,
+  const VecOpsConfig& config,
+  T* output)
+{
+  (void)device;
+  (void)config;
+  if (shards == nullptr || output == nullptr || rho == 0 || n == 0) { return eIcicleError::INVALID_ARGUMENT; }
+  const uint64_t total = rho * n;
+  for (uint64_t idx = 0; idx < total; idx++) {
+    const uint64_t shard_idx = idx % rho;
+    const uint64_t j = idx / rho;
+    output[reverse_bits_u64(idx) >> mm] = shards[shard_idx][j];
+  }
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_MERGE_SHARDS_BIT_REVERSE_BACKEND("CPU", cpu_merge_shards_bit_reverse<scalar_t>);
+
+/*********************************** POLY EVAL AT ***********************************/
+template <typename T>
+eIcicleError cpu_poly_eval_at(
+  const Device& device, const T* coeffs, uint64_t n, const T* point, const VecOpsConfig& config, T* output)
+{
+  (void)device;
+  (void)config;
+  if (coeffs == nullptr || point == nullptr || output == nullptr || n == 0) { return eIcicleError::INVALID_ARGUMENT; }
+
+  T acc = coeffs[n - 1];
+  for (int64_t i = (int64_t)n - 2; i >= 0; --i) {
+    acc = acc * (*point) + coeffs[i];
+  }
+  output[0] = acc;
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_POLY_EVAL_AT_BACKEND("CPU", cpu_poly_eval_at<scalar_t>);
+
+template <typename T>
+eIcicleError cpu_poly_eval_at_bit_reverse(
+  const Device& device, const T* coeffs, uint64_t n, uint64_t mm, const T* point, const VecOpsConfig& config, T* output)
+{
+  (void)device;
+  (void)config;
+  if (coeffs == nullptr || point == nullptr || output == nullptr || n == 0) { return eIcicleError::INVALID_ARGUMENT; }
+  if ((n & (n - 1)) != 0 || mm > 63) { return eIcicleError::INVALID_ARGUMENT; }
+
+  T acc = coeffs[reverse_bits_u64(n - 1) >> mm];
+  for (int64_t i = (int64_t)n - 2; i >= 0; --i) {
+    const uint64_t idx = reverse_bits_u64(static_cast<uint64_t>(i)) >> mm;
+    acc = acc * (*point) + coeffs[idx];
+  }
+  output[0] = acc;
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_POLY_EVAL_AT_BIT_REVERSE_BACKEND("CPU", cpu_poly_eval_at_bit_reverse<scalar_t>);
+
+/*********************************** DIVIDE BY (X-A) ***********************************/
+template <typename T>
+eIcicleError cpu_divide_by_x_minus_a(
+  const Device& device, const T* coeffs, uint64_t n, const T* point, const VecOpsConfig& config, T* output)
+{
+  (void)device;
+  (void)config;
+  if (coeffs == nullptr || point == nullptr || output == nullptr || n < 2) { return eIcicleError::INVALID_ARGUMENT; }
+
+  output[n - 2] = coeffs[n - 1];
+  for (int64_t i = (int64_t)n - 2; i >= 1; --i) {
+    output[i - 1] = coeffs[i] + output[i] * (*point);
+  }
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_DIVIDE_BY_X_MINUS_A_BACKEND("CPU", cpu_divide_by_x_minus_a<scalar_t>);
+
+/*********************************** SUPPORT IDENTITY ***********************************/
+template <typename T>
+eIcicleError cpu_support_identity(
+  const Device& device,
+  const T* omega,
+  const T* shift,
+  uint64_t size_poly,
+  uint64_t nb_copies,
+  const VecOpsConfig& config,
+  T* output)
+{
+  (void)device;
+  (void)config;
+  if (omega == nullptr || shift == nullptr || output == nullptr) { return eIcicleError::INVALID_ARGUMENT; }
+  if (size_poly == 0 || nb_copies == 0) { return eIcicleError::SUCCESS; }
+
+  T coset = T::one();
+  for (uint64_t copy = 0; copy < nb_copies; copy++) {
+    const uint64_t base = copy * size_poly;
+    T omega_power = T::one();
+    for (uint64_t i = 0; i < size_poly; i++) {
+      output[base + i] = omega_power * coset;
+      omega_power = omega_power * (*omega);
+    }
+    coset = coset * (*shift);
+  }
+
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_SUPPORT_IDENTITY_BACKEND("CPU", cpu_support_identity<scalar_t>);
+
+/*********************************** GATHER BY INDICES ***********************************/
+template <typename T>
+eIcicleError cpu_gather_by_indices(
+  const Device& device,
+  const T* input,
+  uint64_t input_size,
+  const int64_t* indices,
+  uint64_t size,
+  const VecOpsConfig& config,
+  T* output)
+{
+  (void)device;
+  (void)config;
+  if (input == nullptr || indices == nullptr || output == nullptr) { return eIcicleError::INVALID_ARGUMENT; }
+
+  for (uint64_t i = 0; i < size; i++) {
+    const int64_t idx = indices[i];
+    if (idx < 0 || static_cast<uint64_t>(idx) >= input_size) { return eIcicleError::INVALID_ARGUMENT; }
+    output[i] = input[static_cast<uint64_t>(idx)];
+  }
+
+  return eIcicleError::SUCCESS;
+}
+
+REGISTER_GATHER_BY_INDICES_BACKEND("CPU", cpu_gather_by_indices<scalar_t>);
+
 /*********************************** CONVERT MONTGOMERY ***********************************/
 template <typename T>
 eIcicleError cpu_convert_montgomery(
@@ -261,3 +482,13 @@ eIcicleError cpu_scalar_mul(
 }
 
 REGISTER_SCALAR_MUL_VEC_BACKEND("CPU", cpu_scalar_mul<scalar_t>);
+
+/*********************************** ADD BY SCALAR***********************************/
+template <typename T>
+eIcicleError cpu_scalar_add(
+  const Device& device, const T* scalar_a, const T* vec_b, uint64_t size, const VecOpsConfig& config, T* output)
+{
+  return cpu_scalar_vector_op(VecOperation::SCALAR_ADD_VEC, scalar_a, vec_b, size, config, output);
+}
+
+REGISTER_SCALAR_ADD_VEC_BACKEND("CPU", cpu_scalar_add<scalar_t>);

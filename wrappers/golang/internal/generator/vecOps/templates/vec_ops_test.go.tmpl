@@ -3,9 +3,11 @@ package tests
 import (
 	"testing"
 
-	{{.Field}} "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/{{.BaseImportPath}}"
 	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/core"
+	{{.Field}} "github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/{{.BaseImportPath}}"
 	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/{{.BaseImportPath}}/vecOps"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/internal/test_helpers"
+	"github.com/ingonyama-zk/icicle-gnark/v3/wrappers/golang/runtime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,12 +36,37 @@ func test{{capitalize .Field}}VecOps(suite *suite.Suite) {
 	suite.Equal(a, out3)
 }
 
+func test{{capitalize .Field}}BatchInverseVecInPlaceOnDevice(suite *suite.Suite) {
+	test_helpers.ActivateMainDevice()
+
+	testSize := 1 << 14
+	in := make(core.HostSlice[{{.Field}}.{{.FieldPrefix}}Field], testSize)
+	expected := make(core.HostSlice[{{.Field}}.{{.FieldPrefix}}Field], testSize)
+	for i := range in {
+		in[i].FromUint32(uint32(i + 1))
+		expected[i] = in[i].Inv()
+	}
+
+	var deviceInOut core.DeviceSlice
+	in.CopyToDevice(&deviceInOut, true)
+	defer deviceInOut.Free()
+
+	cfg := core.DefaultVecOpsConfig()
+	err := vecOps.BatchInverseVec(deviceInOut, deviceInOut, cfg)
+	suite.Equal(runtime.Success, err, "BatchInverseVec in-place failed")
+
+	actual := make(core.HostSlice[{{.Field}}.{{.FieldPrefix}}Field], testSize)
+	actual.CopyFromDevice(&deviceInOut)
+	suite.Equal(expected, actual)
+}
+
 type {{capitalize .Field}}VecOpsTestSuite struct {
 	suite.Suite
 }
 
 func (s *{{capitalize .Field}}VecOpsTestSuite) Test{{capitalize .Field}}VecOps() {
 	s.Run("Test{{capitalize .Field}}VecOps", testWrapper(&s.Suite, test{{capitalize .Field}}VecOps))
+	s.Run("Test{{capitalize .Field}}BatchInverseVecInPlaceOnDevice", testWrapper(&s.Suite, test{{capitalize .Field}}BatchInverseVecInPlaceOnDevice))
 }
 
 func TestSuite{{capitalize .Field}}VecOps(t *testing.T) {

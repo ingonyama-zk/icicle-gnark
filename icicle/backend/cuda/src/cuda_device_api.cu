@@ -99,7 +99,7 @@ public:
   eIcicleError create_stream(icicleStreamHandle* stream) const override
   {
     cudaStream_t cudaStream;
-    cudaError_t err = cudaStreamCreate(&cudaStream);
+    cudaError_t err = cudaStreamCreateWithFlags(&cudaStream, cudaStreamNonBlocking);
     *stream = reinterpret_cast<icicleStreamHandle>(cudaStream);
     return (err == cudaSuccess) ? eIcicleError::SUCCESS : eIcicleError::STREAM_CREATION_FAILED;
   }
